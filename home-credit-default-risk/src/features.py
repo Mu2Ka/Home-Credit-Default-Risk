@@ -190,3 +190,117 @@ def merge_installments_payments_features(application_train: pd.DataFrame,
                                          installments_payments: pd.DataFrame) -> pd.DataFrame:
     installments_payments_features = build_installments_payments_features(installments_payments)
     return application_train.merge(installments_payments_features, on="SK_ID_CURR", how="left")
+
+
+def build_POS_CASH_features(POS_CASH_balance: pd.DataFrame) -> pd.DataFrame:
+    pcb = POS_CASH_balance.copy()
+    pcb['DPD_POS_FLAG'] = (pcb['SK_DPD'] > 0).astype(int)
+    pcb['DPD_DEF_POS_FLAG'] = (pcb['SK_DPD_DEF'] > 0).astype(int)
+    pcb['STATUS_COMPLETED_FLAG'] = (pcb['NAME_CONTRACT_STATUS'] == 'Completed').astype(int)
+    pcb_agg_sk_id_prev = pcb.groupby('SK_ID_PREV').agg(
+        SK_ID_CURR=('SK_ID_CURR', 'first'),
+        PCD_PREV_MONTH_MAX=('MONTHS_BALANCE', 'max'),
+        PCD_PREV_MONTH_MIN=('MONTHS_BALANCE', 'min'),
+        PCD_PREV_MONTH_RECORDS=('SK_ID_PREV', 'count'),
+        PCD_CNT_INSTALLMENTS_MAX=('CNT_INSTALMENT', 'max'),
+        PCD_CNT_INSTALLMENTS_MIN=('CNT_INSTALMENT', 'min'),
+        PCD_CNT_INSTALLMENTS_MEAN=('CNT_INSTALMENT', 'mean'),
+        PCD_CNT_INSTALMENT_FUTURE_max=('CNT_INSTALMENT_FUTURE', 'max'),
+        PCD_CNT_INSTALMENT_FUTURE_mean=('CNT_INSTALMENT_FUTURE', 'mean'),
+        PCD_CNT_INSTALMENT_FUTURE_min=('CNT_INSTALMENT_FUTURE', 'min'),
+        PREV_DPD_MAX=('SK_DPD', 'max'),
+        PREV_DPD_MEAN=('SK_DPD', 'mean'),
+        PREV_DPD_SUM=('SK_DPD', 'sum'),
+        PREV_DPD_DEF_MAX=('SK_DPD_DEF', 'max'),
+        PREV_DPD_DEF_MEAN=('SK_DPD_DEF', 'mean'),
+        PREV_DPD_DEF_SUM=('SK_DPD_DEF', 'sum'),
+        PREV_LATE_MONTHS_COUNT=('DPD_POS_FLAG', 'sum'),
+        PREV_LATE_DEF_MONTHS_COUNT=('DPD_DEF_POS_FLAG', 'sum'),
+        PREV_STATUS_NUNIQUE=('NAME_CONTRACT_STATUS', 'nunique'),
+        PREV_WAS_COMPLETED=('STATUS_COMPLETED_FLAG', 'max')
+    ).reset_index()
+    pcb_agg_sk_id_curr = pcb_agg_sk_id_prev.groupby('SK_ID_CURR').agg(
+        POS_PREV_CREDIT_COUNT=('SK_ID_PREV', 'nunique'),
+
+        POS_PREV_MONTH_RECORDS_SUM=('PCD_PREV_MONTH_RECORDS', 'sum'),
+        POS_PREV_MONTH_RECORDS_MEAN=('PCD_PREV_MONTH_RECORDS', 'mean'),
+
+        POS_CNT_INSTALLMENTS_MAX=('PCD_CNT_INSTALLMENTS_MAX', 'max'),
+        POS_CNT_INSTALLMENTS_MEAN=('PCD_CNT_INSTALLMENTS_MEAN', 'mean'),
+
+        POS_CNT_INSTALMENT_FUTURE_MAX=('PCD_CNT_INSTALMENT_FUTURE_max', 'max'),
+        POS_CNT_INSTALMENT_FUTURE_MEAN=('PCD_CNT_INSTALMENT_FUTURE_mean', 'mean'),
+        POS_CNT_INSTALMENT_FUTURE_MIN=('PCD_CNT_INSTALMENT_FUTURE_min', 'min'),
+
+        POS_DPD_MAX=('PREV_DPD_MAX', 'max'),
+        POS_DPD_MEAN=('PREV_DPD_MEAN', 'mean'),
+        POS_DPD_SUM=('PREV_DPD_SUM', 'sum'),
+
+        POS_DPD_DEF_MAX=('PREV_DPD_DEF_MAX', 'max'),
+        POS_DPD_DEF_MEAN=('PREV_DPD_DEF_MEAN', 'mean'),
+        POS_DPD_DEF_SUM=('PREV_DPD_DEF_SUM', 'sum'),
+
+        POS_LATE_MONTHS_COUNT_SUM=('PREV_LATE_MONTHS_COUNT', 'sum'),
+        POS_LATE_DEF_MONTHS_COUNT_SUM=('PREV_LATE_DEF_MONTHS_COUNT', 'sum'),
+
+        POS_STATUS_NUNIQUE_MAX=('PREV_STATUS_NUNIQUE', 'max'),
+        POS_COMPLETED_CREDIT_COUNT=('PREV_WAS_COMPLETED', 'sum'),
+        POS_COMPLETED_CREDIT_RATIO=('PREV_WAS_COMPLETED', 'mean')
+    ).reset_index()
+    return pcb_agg_sk_id_curr
+
+
+def merge_POS_CASH_BALANCE_features(application_train: pd.DataFrame,
+                                    POS_CASH_BALANCE: pd.DataFrame) -> pd.DataFrame:
+    POS_CASH_BALANCE_features = build_POS_CASH_features(POS_CASH_BALANCE)
+    return application_train.merge(POS_CASH_BALANCE_features, on="SK_ID_CURR", how="left")
+
+def build_previous_application_features(previous_application: pd.DataFrame) -> pd.DataFrame:
+    prev = previous_application.copy()
+
+    prev['PREV_APPROVED_FLAG'] = (prev['NAME_CONTRACT_STATUS'] == 'Approved').astype(int)
+    prev['PREV_REFUSED_FLAG'] = (prev['NAME_CONTRACT_STATUS'] == 'Refused').astype(int)
+    prev['PREV_CANCELED_FLAG'] = (prev['NAME_CONTRACT_STATUS'] == 'Canceled').astype(int)
+    prev['PREV_UNUSED_FLAG'] = (prev['NAME_CONTRACT_STATUS'] == 'Unused offer').astype(int)
+
+    prev['PREV_CREDIT_APP_DIFF'] = prev['AMT_APPLICATION'] - prev['AMT_CREDIT']
+    prev['PREV_CREDIT_APP_RATIO'] = prev['AMT_CREDIT'] / prev['AMT_APPLICATION']
+
+    prev_features = prev.groupby('SK_ID_CURR').agg(
+        PREV_APPLICATION_COUNT=('SK_ID_PREV', 'nunique'),
+        PREV_AMT_APPLICATION_MEAN=('AMT_APPLICATION', 'mean'),
+        PREV_AMT_APPLICATION_MAX=('AMT_APPLICATION', 'max'),
+        PREV_AMT_CREDIT_MEAN=('AMT_CREDIT', 'mean'),
+        PREV_AMT_CREDIT_MAX=('AMT_CREDIT', 'max'),
+        PREV_AMT_ANNUITY_MEAN=('AMT_ANNUITY', 'mean'),
+        PREV_AMT_ANNUITY_MAX=('AMT_ANNUITY', 'max'),
+        PREV_CNT_PAYMENT_MEAN=('CNT_PAYMENT', 'mean'),
+        PREV_CNT_PAYMENT_MAX=('CNT_PAYMENT', 'max'),
+        PREV_DAYS_DECISION_MAX=('DAYS_DECISION', 'max'),
+        PREV_DAYS_DECISION_MIN=('DAYS_DECISION', 'min'),
+        PREV_CREDIT_APP_DIFF_MEAN=('PREV_CREDIT_APP_DIFF', 'mean'),
+        PREV_CREDIT_APP_RATIO_MEAN=('PREV_CREDIT_APP_RATIO', 'mean'),
+        PREV_APPROVED_COUNT=('PREV_APPROVED_FLAG', 'sum'),
+        PREV_REFUSED_COUNT=('PREV_REFUSED_FLAG', 'sum'),
+        PREV_CANCELED_COUNT=('PREV_CANCELED_FLAG', 'sum'),
+        PREV_UNUSED_COUNT=('PREV_UNUSED_FLAG', 'sum'),
+        PREV_APPROVED_RATIO=('PREV_APPROVED_FLAG', 'mean'),
+        PREV_REFUSED_RATIO=('PREV_REFUSED_FLAG', 'mean'),
+    ).reset_index()
+
+    approved = prev[prev['NAME_CONTRACT_STATUS'] == 'Approved'].groupby('SK_ID_CURR').agg(
+        APPROVED_AMT_CREDIT_MEAN=('AMT_CREDIT', 'mean'),
+        APPROVED_AMT_CREDIT_MAX=('AMT_CREDIT', 'max'),
+        APPROVED_AMT_ANNUITY_MEAN=('AMT_ANNUITY', 'mean'),
+        APPROVED_CNT_PAYMENT_MEAN=('CNT_PAYMENT', 'mean'),
+        APPROVED_DAYS_DECISION_MAX=('DAYS_DECISION', 'max'),
+    ).reset_index()
+
+    prev_features = prev_features.merge(approved, on='SK_ID_CURR', how='left')
+
+    return prev_features
+
+def merge_previous_application_features(application_train: pd.DataFrame,
+                                    previous_application: pd.DataFrame) -> pd.DataFrame:
+    previous_applicationE_features = build_previous_application_features(previous_application)
+    return application_train.merge(previous_applicationE_features, on="SK_ID_CURR", how="left")
