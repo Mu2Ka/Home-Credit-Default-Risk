@@ -7,6 +7,10 @@ def load_application_train(data_dir: str | Path = ".") -> pd.DataFrame:
     data_dir = Path(data_dir)
     return pd.read_csv(data_dir / "application_train.csv")
 
+def load_application_test(data_dir: str | Path = ".") -> pd.DataFrame:
+    data_dir = Path(data_dir)
+    return pd.read_csv(data_dir / "application_test.csv")
+
 
 def load_bureau(data_dir: str | Path = ".") -> pd.DataFrame:
     data_dir = Path(data_dir)
@@ -38,6 +42,8 @@ def load_previous_application(data_dir: str | Path = ".") -> pd.DataFrame:
 
 def load_core_tables(data_dir: str | Path = ".") -> dict[str, pd.DataFrame]:
     return {
+        "application_test": load_application_test(data_dir),
+        "test": load_application_test(data_dir),
         "application_train": load_application_train(data_dir),
         "bureau": load_bureau(data_dir),
         "bureau_balance": load_bureau_balance(data_dir),
@@ -46,5 +52,4 @@ def load_core_tables(data_dir: str | Path = ".") -> dict[str, pd.DataFrame]:
         "POS_CASH_balance": load_POS_CASH_balance(data_dir),
         "previous_application": load_previous_application(data_dir),
     }
-
 
