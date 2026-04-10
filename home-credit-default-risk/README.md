@@ -177,7 +177,3 @@ HomeCredit_columns_description.csv
 sample_submission.csv
 ```
 
-Generated files such as `submission.csv`, local archives, model artifacts, and
-CatBoost training logs are ignored by Git.
-
-
